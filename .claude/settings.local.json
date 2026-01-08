@@ -4,7 +4,19 @@
       "Bash(git init:*)",
       "Bash(chmod:*)",
       "Bash(git remote add:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git tag:*)",
+      "Bash(git branch:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(snyk --version:*)",
+      "Bash(git -C \"C:\\\\Users\\\\way50\\\\Desktop\\\\EDGE\\\\MacDesktopWidget\" log --oneline -10)",
+      "Bash(cat:*)",
+      "WebSearch"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "snyk"
+  ]
 }

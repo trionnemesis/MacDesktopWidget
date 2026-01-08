@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "snyk": {
+      "command": "snyk",
+      "args": ["mcp"],
+      "env": {
+        "SNYK_TOKEN": "your_snyk_token_here"
+      }
+    }
+  }
+}
