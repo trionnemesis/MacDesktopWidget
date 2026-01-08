@@ -1,0 +1,12 @@
+{
+  "post-commit": {
+    "command": "bash .git/hooks/post-commit",
+    "blocking": true,
+    "description": "自動 Code Review 與測試覆蓋率檢查（未達 80% 會持續執行）"
+  },
+  "pre-push": {
+    "command": "bash .git/hooks/pre-push",
+    "blocking": true,
+    "description": "Snyk 資安掃描（發現 Critical/High 漏洞會阻止 push）"
+  }
+}

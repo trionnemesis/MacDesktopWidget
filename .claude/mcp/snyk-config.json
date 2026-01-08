@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "snyk": {
+      "command": "snyk",
+      "args": ["mcp"],
+      "env": {
+        "SNYK_TOKEN": "${SNYK_TOKEN}"
+      },
+      "description": "Snyk 安全性掃描服務"
+    }
+  }
+}
