@@ -20,6 +20,10 @@ class AnomalyType(str, Enum):
     PROCESS_CPU = "process_cpu"
     PROCESS_MEMORY = "process_memory"
     DISK_IO = "disk_io"
+    NETWORK_IO = "network_io"
+    BATTERY_LOW = "battery_low"
+    BATTERY_HEALTH = "battery_health"
+    HIGH_TEMPERATURE = "high_temperature"
 
 
 class AnomalySeverity(str, Enum):
@@ -86,37 +90,59 @@ class AnomalyDetector:
         memory_threshold: float = 90.0,
         process_threshold: float = 50.0,
         disk_io_threshold_mb: float = 200.0,
+        network_io_threshold_mb: float = 50.0,
+        battery_low_threshold: float = 20.0,
+        battery_health_threshold: int = 80,
+        temperature_threshold: float = 80.0,
         cpu_duration: float = 3.0,
         memory_duration: float = 5.0,
         process_duration: float = 5.0,
         disk_duration: float = 10.0,
+        network_duration: float = 10.0,
+        battery_duration: float = 5.0,
+        temperature_duration: float = 5.0,
         cooldown: float = 60.0
     ):
         """
         Initialize anomaly detector.
-        
+
         Args:
             cpu_threshold: CPU percentage threshold.
             memory_threshold: Memory percentage threshold.
             process_threshold: Single process resource threshold.
             disk_io_threshold_mb: Disk I/O threshold in MB/s.
+            network_io_threshold_mb: Network I/O threshold in MB/s.
+            battery_low_threshold: Battery low percentage threshold.
+            battery_health_threshold: Battery health percentage threshold.
+            temperature_threshold: Temperature threshold in Celsius.
             cpu_duration: Sustained duration for CPU anomaly (seconds).
             memory_duration: Sustained duration for memory anomaly (seconds).
             process_duration: Sustained duration for process anomaly (seconds).
             disk_duration: Sustained duration for disk anomaly (seconds).
+            network_duration: Sustained duration for network anomaly (seconds).
+            battery_duration: Sustained duration for battery anomaly (seconds).
+            temperature_duration: Sustained duration for temperature anomaly (seconds).
             cooldown: Cooldown period after acknowledgment (seconds).
         """
         self.cpu_threshold = cpu_threshold
         self.memory_threshold = memory_threshold
         self.process_threshold = process_threshold
         self.disk_io_threshold_mb = disk_io_threshold_mb
-        
+        self.network_io_threshold_mb = network_io_threshold_mb
+        self.battery_low_threshold = battery_low_threshold
+        self.battery_health_threshold = battery_health_threshold
+        self.temperature_threshold = temperature_threshold
+
         self.durations = {
             AnomalyType.CPU: cpu_duration,
             AnomalyType.MEMORY: memory_duration,
             AnomalyType.PROCESS_CPU: process_duration,
             AnomalyType.PROCESS_MEMORY: process_duration,
             AnomalyType.DISK_IO: disk_duration,
+            AnomalyType.NETWORK_IO: network_duration,
+            AnomalyType.BATTERY_LOW: battery_duration,
+            AnomalyType.BATTERY_HEALTH: battery_duration,
+            AnomalyType.HIGH_TEMPERATURE: temperature_duration,
         }
         
         self.cooldown = cooldown
@@ -165,7 +191,24 @@ class AnomalyDetector:
         disk_event = self._check_disk_io(system_data, now)
         if disk_event:
             events.append(disk_event)
-        
+
+        # Check Network I/O
+        if system_data.network:
+            network_event = self._check_network_io(system_data, now)
+            if network_event:
+                events.append(network_event)
+
+        # Check Battery
+        if system_data.battery:
+            battery_events = self._check_battery(system_data, now)
+            events.extend(battery_events)
+
+        # Check Temperature
+        if system_data.temperature:
+            temp_event = self._check_temperature(system_data, now)
+            if temp_event:
+                events.append(temp_event)
+
         return events
     
     def _check_cpu(self, system_data: SystemData, now: float) -> Optional[AnomalyEvent]:
@@ -476,3 +519,297 @@ class AnomalyDetector:
         ]
         for sig in expired:
             del self.recent_events[sig]
+
+    def _check_network_io(self, system_data: SystemData, now: float) -> Optional[AnomalyEvent]:
+        """Check for network I/O anomalies."""
+        if not system_data.network:
+            return None
+
+        total_mb = system_data.network.total_mb_per_sec
+        threshold = self.network_io_threshold_mb
+        anomaly_type = AnomalyType.NETWORK_IO
+
+        state = self.states[anomaly_type]
+
+        if total_mb > threshold:
+            if state.status == AnomalyStatus.NORMAL:
+                state.status = AnomalyStatus.POTENTIAL
+                state.start_time = now
+                logger.debug(f"Network I/O anomaly potential: {total_mb:.1f} MB/s")
+
+            elif state.status == AnomalyStatus.POTENTIAL:
+                duration = now - state.start_time
+                if duration >= self.durations[anomaly_type]:
+                    state.status = AnomalyStatus.CONFIRMED
+                    return self._create_network_event(system_data, now, duration)
+
+        else:
+            if state.status == AnomalyStatus.ACKNOWLEDGED:
+                if now - state.ack_time >= self.cooldown:
+                    state.status = AnomalyStatus.NORMAL
+                    logger.debug("Network I/O anomaly cleared after cooldown")
+            else:
+                state.status = AnomalyStatus.NORMAL
+
+        return None
+
+    def _create_network_event(
+        self,
+        system_data: SystemData,
+        now: float,
+        duration: float
+    ) -> AnomalyEvent:
+        """Create network I/O anomaly event."""
+        upload_mb = system_data.network.upload_mb_per_sec
+        download_mb = system_data.network.download_mb_per_sec
+        total_mb = system_data.network.total_mb_per_sec
+
+        # Get top network process
+        top_process = None
+        if system_data.network.top_processes:
+            top_proc_info = system_data.network.top_processes[0]
+            # Convert to ProcessInfo for consistency
+            from .data_structures import ProcessInfo
+            top_process = ProcessInfo(
+                pid=top_proc_info.pid,
+                name=top_proc_info.name,
+                cpu_percent=0.0,
+                memory_percent=0.0,
+                status="unknown",
+                memory_bytes=0
+            )
+
+        event = AnomalyEvent(
+            id=f"network_io_{int(now)}",
+            type=AnomalyType.NETWORK_IO,
+            timestamp=now,
+            severity=AnomalySeverity.INFO,
+            metrics={
+                "upload_mb_per_sec": upload_mb,
+                "download_mb_per_sec": download_mb,
+                "total_mb_per_sec": total_mb,
+                "primary_value": total_mb,
+            },
+            related_process=top_process,
+            is_sustained=True,
+            duration_seconds=duration
+        )
+
+        self.states[AnomalyType.NETWORK_IO].status = AnomalyStatus.ACKNOWLEDGED
+        self.states[AnomalyType.NETWORK_IO].ack_time = now
+        self.recent_events[event.get_signature()] = now
+
+        logger.info(f"Network I/O anomaly detected: {total_mb:.1f} MB/s")
+        return event
+
+    def _check_battery(self, system_data: SystemData, now: float) -> list[AnomalyEvent]:
+        """Check for battery anomalies."""
+        events = []
+
+        if not system_data.battery:
+            return events
+
+        battery = system_data.battery
+
+        # Check battery low
+        if not battery.is_charging and battery.percent < self.battery_low_threshold:
+            low_event = self._check_battery_low(battery, now)
+            if low_event:
+                events.append(low_event)
+
+        # Check battery health
+        if battery.health_percent is not None:
+            health_event = self._check_battery_health(battery, now)
+            if health_event:
+                events.append(health_event)
+
+        return events
+
+    def _check_battery_low(self, battery, now: float) -> Optional[AnomalyEvent]:
+        """Check for low battery."""
+        anomaly_type = AnomalyType.BATTERY_LOW
+        state = self.states[anomaly_type]
+
+        battery_percent = battery.percent
+
+        if state.status == AnomalyStatus.NORMAL:
+            state.status = AnomalyStatus.POTENTIAL
+            state.start_time = now
+            logger.debug(f"Battery low anomaly potential: {battery_percent:.1f}%")
+
+        elif state.status == AnomalyStatus.POTENTIAL:
+            duration = now - state.start_time
+            if duration >= self.durations[anomaly_type]:
+                state.status = AnomalyStatus.CONFIRMED
+                return self._create_battery_low_event(battery, now, duration)
+
+        return None
+
+    def _create_battery_low_event(
+        self,
+        battery,
+        now: float,
+        duration: float
+    ) -> AnomalyEvent:
+        """Create battery low anomaly event."""
+        battery_percent = battery.percent
+
+        severity = AnomalySeverity.CRITICAL if battery_percent < 10 else AnomalySeverity.WARNING
+
+        event = AnomalyEvent(
+            id=f"battery_low_{int(now)}",
+            type=AnomalyType.BATTERY_LOW,
+            timestamp=now,
+            severity=severity,
+            metrics={
+                "battery_percent": battery_percent,
+                "time_remaining_hours": battery.time_remaining_hours or 0,
+                "primary_value": battery_percent,
+            },
+            is_sustained=True,
+            duration_seconds=duration
+        )
+
+        self.states[AnomalyType.BATTERY_LOW].status = AnomalyStatus.ACKNOWLEDGED
+        self.states[AnomalyType.BATTERY_LOW].ack_time = now
+        self.recent_events[event.get_signature()] = now
+
+        logger.info(f"Battery low anomaly detected: {battery_percent:.1f}%")
+        return event
+
+    def _check_battery_health(self, battery, now: float) -> Optional[AnomalyEvent]:
+        """Check for poor battery health."""
+        if battery.health_percent is None:
+            return None
+
+        anomaly_type = AnomalyType.BATTERY_HEALTH
+        state = self.states[anomaly_type]
+
+        health_percent = battery.health_percent
+
+        if health_percent < self.battery_health_threshold:
+            if state.status == AnomalyStatus.NORMAL:
+                state.status = AnomalyStatus.POTENTIAL
+                state.start_time = now
+                logger.debug(f"Battery health anomaly potential: {health_percent}%")
+
+            elif state.status == AnomalyStatus.POTENTIAL:
+                duration = now - state.start_time
+                if duration >= self.durations[anomaly_type]:
+                    state.status = AnomalyStatus.CONFIRMED
+                    return self._create_battery_health_event(battery, now, duration)
+
+        else:
+            if state.status == AnomalyStatus.ACKNOWLEDGED:
+                if now - state.ack_time >= self.cooldown:
+                    state.status = AnomalyStatus.NORMAL
+                    logger.debug("Battery health anomaly cleared after cooldown")
+            else:
+                state.status = AnomalyStatus.NORMAL
+
+        return None
+
+    def _create_battery_health_event(
+        self,
+        battery,
+        now: float,
+        duration: float
+    ) -> AnomalyEvent:
+        """Create battery health anomaly event."""
+        health_percent = battery.health_percent
+
+        severity = AnomalySeverity.WARNING
+
+        event = AnomalyEvent(
+            id=f"battery_health_{int(now)}",
+            type=AnomalyType.BATTERY_HEALTH,
+            timestamp=now,
+            severity=severity,
+            metrics={
+                "health_percent": health_percent,
+                "cycle_count": battery.cycle_count or 0,
+                "condition": battery.condition or "unknown",
+                "primary_value": health_percent,
+            },
+            is_sustained=True,
+            duration_seconds=duration
+        )
+
+        self.states[AnomalyType.BATTERY_HEALTH].status = AnomalyStatus.ACKNOWLEDGED
+        self.states[AnomalyType.BATTERY_HEALTH].ack_time = now
+        self.recent_events[event.get_signature()] = now
+
+        logger.info(f"Battery health anomaly detected: {health_percent}%")
+        return event
+
+    def _check_temperature(self, system_data: SystemData, now: float) -> Optional[AnomalyEvent]:
+        """Check for high temperature anomalies."""
+        if not system_data.temperature:
+            return None
+
+        temp = system_data.temperature
+        max_temp = temp.max_temp
+
+        if max_temp is None:
+            return None
+
+        threshold = self.temperature_threshold
+        anomaly_type = AnomalyType.HIGH_TEMPERATURE
+
+        state = self.states[anomaly_type]
+
+        if max_temp > threshold:
+            if state.status == AnomalyStatus.NORMAL:
+                state.status = AnomalyStatus.POTENTIAL
+                state.start_time = now
+                logger.debug(f"Temperature anomaly potential: {max_temp:.1f}°C")
+
+            elif state.status == AnomalyStatus.POTENTIAL:
+                duration = now - state.start_time
+                if duration >= self.durations[anomaly_type]:
+                    state.status = AnomalyStatus.CONFIRMED
+                    return self._create_temperature_event(system_data, now, duration)
+
+        else:
+            if state.status == AnomalyStatus.ACKNOWLEDGED:
+                if now - state.ack_time >= self.cooldown:
+                    state.status = AnomalyStatus.NORMAL
+                    logger.debug("Temperature anomaly cleared after cooldown")
+            else:
+                state.status = AnomalyStatus.NORMAL
+
+        return None
+
+    def _create_temperature_event(
+        self,
+        system_data: SystemData,
+        now: float,
+        duration: float
+    ) -> AnomalyEvent:
+        """Create high temperature anomaly event."""
+        temp = system_data.temperature
+
+        severity = AnomalySeverity.CRITICAL if temp.max_temp > 90 else AnomalySeverity.WARNING
+
+        event = AnomalyEvent(
+            id=f"temperature_{int(now)}",
+            type=AnomalyType.HIGH_TEMPERATURE,
+            timestamp=now,
+            severity=severity,
+            metrics={
+                "max_temp": temp.max_temp,
+                "avg_temp": temp.avg_temp or 0,
+                "cpu_temp": temp.cpu_temp or 0,
+                "gpu_temp": temp.gpu_temp or 0,
+                "primary_value": temp.max_temp,
+            },
+            is_sustained=True,
+            duration_seconds=duration
+        )
+
+        self.states[AnomalyType.HIGH_TEMPERATURE].status = AnomalyStatus.ACKNOWLEDGED
+        self.states[AnomalyType.HIGH_TEMPERATURE].ack_time = now
+        self.recent_events[event.get_signature()] = now
+
+        logger.info(f"High temperature anomaly detected: {temp.max_temp:.1f}°C")
+        return event

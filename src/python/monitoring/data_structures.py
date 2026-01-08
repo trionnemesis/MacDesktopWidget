@@ -133,6 +133,96 @@ class ProcessData:
 
 
 @dataclass
+class NetworkIOCounters:
+    """Network I/O counters."""
+    bytes_sent: int
+    bytes_recv: int
+    packets_sent: int
+    packets_recv: int
+    errin: int = 0
+    errout: int = 0
+    dropin: int = 0
+    dropout: int = 0
+
+
+@dataclass
+class ProcessNetworkInfo:
+    """Process network usage information."""
+    pid: int
+    name: str
+    upload_bytes_per_sec: float
+    download_bytes_per_sec: float
+    connections_count: int = 0
+
+    @property
+    def upload_mb_per_sec(self) -> float:
+        """Upload speed in MB/s."""
+        return self.upload_bytes_per_sec / (1024 ** 2)
+
+    @property
+    def download_mb_per_sec(self) -> float:
+        """Download speed in MB/s."""
+        return self.download_bytes_per_sec / (1024 ** 2)
+
+    @property
+    def total_mb_per_sec(self) -> float:
+        """Total network speed in MB/s."""
+        return (self.upload_bytes_per_sec + self.download_bytes_per_sec) / (1024 ** 2)
+
+
+@dataclass
+class NetworkData:
+    """Network monitoring data."""
+    upload_bytes_per_sec: float
+    download_bytes_per_sec: float
+    io_counters: NetworkIOCounters
+    top_processes: List[ProcessNetworkInfo] = field(default_factory=list)
+
+    @property
+    def upload_mb_per_sec(self) -> float:
+        """Upload speed in MB/s."""
+        return self.upload_bytes_per_sec / (1024 ** 2)
+
+    @property
+    def download_mb_per_sec(self) -> float:
+        """Download speed in MB/s."""
+        return self.download_bytes_per_sec / (1024 ** 2)
+
+    @property
+    def total_mb_per_sec(self) -> float:
+        """Total network speed in MB/s."""
+        return (self.upload_bytes_per_sec + self.download_bytes_per_sec) / (1024 ** 2)
+
+
+@dataclass
+class BatteryData:
+    """Battery monitoring data."""
+    percent: float
+    is_charging: bool
+    time_remaining_seconds: Optional[int] = None
+    health_percent: Optional[int] = None
+    cycle_count: Optional[int] = None
+    condition: Optional[str] = None
+
+    @property
+    def time_remaining_hours(self) -> Optional[float]:
+        """Time remaining in hours."""
+        if self.time_remaining_seconds is not None and self.time_remaining_seconds > 0:
+            return self.time_remaining_seconds / 3600
+        return None
+
+
+@dataclass
+class TemperatureData:
+    """Temperature monitoring data."""
+    cpu_temp: Optional[float] = None
+    gpu_temp: Optional[float] = None
+    avg_temp: Optional[float] = None
+    max_temp: Optional[float] = None
+    all_sensors: Dict[str, float] = field(default_factory=dict)
+
+
+@dataclass
 class SystemData:
     """Complete system monitoring data."""
     timestamp: float
@@ -141,3 +231,6 @@ class SystemData:
     disk: DiskData
     gpu: Optional[GPUData]
     processes: ProcessData
+    network: Optional[NetworkData] = None
+    battery: Optional[BatteryData] = None
+    temperature: Optional[TemperatureData] = None

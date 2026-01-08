@@ -10,6 +10,8 @@ from .memory_monitor import MemoryMonitor
 from .disk_monitor import DiskMonitor
 from .gpu_monitor import GPUMonitor
 from .process_monitor import ProcessMonitor
+from .network_monitor import NetworkMonitor
+from .battery_monitor import BatteryMonitor
 from .data_structures import SystemData
 
 logger = logging.getLogger(__name__)
@@ -47,9 +49,11 @@ class SystemMonitor(QThread):
             self.disk_monitor = DiskMonitor()
             self.gpu_monitor = GPUMonitor()
             self.process_monitor = ProcessMonitor(top_count=top_processes)
-            
+            self.network_monitor = NetworkMonitor()
+            self.battery_monitor = BatteryMonitor()
+
             logger.info(f"System Monitor initialized (interval: {update_interval_ms}ms)")
-        
+
         except Exception as e:
             logger.error(f"Error initializing monitors: {e}")
             raise
@@ -108,14 +112,20 @@ class SystemMonitor(QThread):
             disk_data = self.disk_monitor.get_disk_data()
             gpu_data = self.gpu_monitor.get_gpu_data()
             process_data = self.process_monitor.get_process_data()
-            
+            network_data = self.network_monitor.get_network_data()
+            battery_data = self.battery_monitor.get_battery_data()
+            temperature_data = self.battery_monitor.get_temperature_data()
+
             return SystemData(
                 timestamp=timestamp,
                 cpu=cpu_data,
                 memory=memory_data,
                 disk=disk_data,
                 gpu=gpu_data,
-                processes=process_data
+                processes=process_data,
+                network=network_data,
+                battery=battery_data,
+                temperature=temperature_data
             )
         
         except Exception as e:

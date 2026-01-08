@@ -14,12 +14,17 @@ A minimal transparent macOS system dashboard with Ollama + LLaMA3 8B AI Agent fo
 - **磁碟 I/O**: 即時顯示資料讀取與寫入速度。
 - **GPU 支援**: 專屬 macOS GPU 使用監測 (macmon)。
 - **程序排行**: 自動過濾並顯示前 5 名高資源消耗程序。
+- **網路監控**: 追蹤系統與程序級別的上傳/下載頻寬，偵測異常流量。
+- **電池健康**: 監控電池電量、健康度、循環次數及狀況 (macOS)。
+- **溫度監測**: 追蹤 CPU、GPU 及系統溫度，預防過熱。
 
 ### 🤖 AI 智能建議 (AI-Powered Suggestions)
 - **本地推理**: 支援 Ollama + LLaMA3 8B 在地運行，隱私安全無虞。
 - **繁體中文**: 精準的中文回應，語氣專業且符合習慣。
 - **簡潔明瞭**: 嚴格限制回應在 30 字元內，方便一眼掃過。
 - **異常檢測**: 基於狀態機的異常檢測，避免過度干擾。
+- **邊緣過濾**: 智能過濾低價值異常，減少不必要的 AI 推論。
+- **串流輸出**: 支援非同步流式處理，降低首字延遲。
 
 ### 🎨 極簡設計 (Minimalist UI)
 - **Glassmorphism**: 現代感毛玻璃特效 UI。
@@ -112,14 +117,17 @@ black src/
 
 ---
 
-## 📈 目前進度 (Project Status: 90%)
+## 📈 目前進度 (Project Status: 95%)
 
 - [x] 核心監控系統 (CPU, RAM, Disk, GPU)
+- [x] 網路與環境監控 (Network I/O, Battery, Temperature)
 - [x] 異常檢測狀態機 (Anomaly Detection)
 - [x] Ollama / LLaMA3 AI 串接
 - [x] 繁體中文 Few-shot Prompt 設計
 - [x] 透明毛玻璃介面 (Glassmorphism UI)
 - [x] 系統整合與訊號串接
+- [x] 邊緣過濾與效能優化
+- [x] 串流輸出支援
 - [ ] 自動化部署腳本
 - [ ] 使用者自定義選單面板
 
