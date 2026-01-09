@@ -54,11 +54,9 @@ class MainWindow(QMainWindow):
         # Enable transparency
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
-        # Set window size
-        self.setFixedSize(
-            self.config.ui.window_width,
-            self.config.ui.window_height
-        )
+        # Set minimum window size, allowing content to expand
+        self.setMinimumWidth(self.config.ui.window_width)
+        self.setMinimumHeight(self.config.ui.window_height)
         
         # Set title
         self.setWindowTitle("MacDesktopWidget")
@@ -104,7 +102,11 @@ class MainWindow(QMainWindow):
         content_layout.addWidget(process_label)
         
         self.process_text = QLabel("Loading...")
-        self.process_text.setStyleSheet("font-size: 10px; color: rgba(255,255,255,0.7);")
+        self.process_text.setStyleSheet(
+            "font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace; "
+            "font-size: 10px; "
+            "color: rgba(255,255,255,0.7);"
+        )
         self.process_text.setWordWrap(True)
         content_layout.addWidget(self.process_text)
         
