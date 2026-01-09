@@ -19,8 +19,9 @@ A minimal transparent macOS system dashboard with Ollama + LLaMA3 8B AI Agent fo
 - **溫度監測**: 追蹤 CPU、GPU 及系統溫度，預防過熱。
 
 ### 🤖 AI 智能建議 (AI-Powered Suggestions)
-- **本地推理**: 支援 Ollama + LLaMA3 8B 在地運行，隱私安全無虞。
-- **繁體中文**: 精準的中文回應，語氣專業且符合習慣。
+- **本地推理**: 支援 Ollama + Mistral 7B 在地運行，隱私安全無虞。
+- **GPU 加速**: macOS 自動使用 Metal Performance Shaders 加速推論。
+- **台灣繁體中文**: 精準的台灣繁體中文回應，語氣專業且符合習慣。
 - **簡潔明瞭**: 嚴格限制回應在 30 字元內，方便一眼掃過。
 - **異常檢測**: 基於狀態機的異常檢測，避免過度干擾。
 - **邊緣過濾**: 智能過濾低價值異常，減少不必要的 AI 推論。
@@ -36,14 +37,24 @@ A minimal transparent macOS system dashboard with Ollama + LLaMA3 8B AI Agent fo
 ## 🚀 快速上手 (Quick Start)
 
 ### 1. 前置準備 (Prerequisites)
-安裝 [Ollama](https://ollama.com/) 並下載 LLaMA3 模型：
+安裝 [Ollama](https://ollama.com/) 並下載 Mistral 模型：
 ```bash
-# 下載模型
-ollama pull llama3
+# 下載 Mistral 模型（推薦，速度快且品質佳）
+ollama pull mistral:7b-instruct
 
 # 驗證安裝
 ollama list
+
+# 確認 Ollama 正在使用 Metal GPU 加速（macOS）
+# 在 Activity Monitor 中查看 "ollama" 進程的 GPU 欄位
+# 或使用以下命令檢查
+ollama ps
 ```
+
+**GPU 加速說明：**
+- Ollama 在 macOS 上會自動偵測並使用 **Metal Performance Shaders** 進行 GPU 加速
+- LLM 推論將自動在 Apple Silicon / Intel GPU 上運行，大幅降低 CPU 負載
+- 無需額外配置，開箱即用
 
 ### 2. 安裝步驟 (Installation)
 ```bash
@@ -79,7 +90,36 @@ python src/python/main.py
 | `CPU_THRESHOLD` | `80` | CPU 異常警示門檻 (%) |
 | `MEMORY_THRESHOLD` | `90` | 記憶體異常警示門檻 (%) |
 | `PROCESS_THRESHOLD` | `50` | 單一程序資源異常門檻 (%) |
-| `OLLAMA_MODEL` | `llama3` | 使用的 AI 模型名稱 |
+| `OLLAMA_MODEL` | `mistral:7b-instruct` | 使用的 AI 模型名稱 |
+
+### 🎯 AI 模型選擇建議
+
+**Mistral 7B Instruct（推薦）:**
+- ✅ 速度快，延遲低（約 1-2 秒）
+- ✅ 繁體中文支援良好
+- ✅ 推論品質佳，適合短文本生成
+- ✅ GPU 加速效果顯著
+
+**其他可選模型：**
+```bash
+# 下載其他模型（可選）
+ollama pull llama3:8b         # Meta LLaMA3 8B（品質好但較慢）
+ollama pull phi-2             # 輕量級（2.7B，速度極快）
+ollama pull qwen:7b           # 阿里通義千問（中文優化）
+```
+
+**驗證 GPU 加速：**
+```bash
+# 方法 1: 使用 Activity Monitor
+# 開啟「活動監視器」→ 搜尋 "ollama" → 檢查 GPU 欄位
+
+# 方法 2: 檢查 Ollama 進程狀態
+ollama ps
+
+# 方法 3: 環境變數確認（可選）
+export OLLAMA_NUM_GPU=999     # 讓 GPU 處理更多層
+export OLLAMA_NUM_THREAD=4    # 限制 CPU 線程數
+```
 
 ---
 
@@ -99,8 +139,9 @@ MacDesktopWidget/
 **技術棧:**
 - **Frontend**: PyQt6 + Glassmorphism QSS
 - **Monitoring**: psutil + macmon
-- **AI Engine**: LangChain + Ollama (LLaMA3)
+- **AI Engine**: LangChain + Ollama (Mistral 7B) + Metal GPU Acceleration
 - **Data**: Pydantic models for type safety
+- **Language**: Traditional Chinese (Taiwan, zh-TW) optimized prompts
 
 ---
 

@@ -80,8 +80,8 @@ class AIConfig(BaseModel):
     )
     
     model_name: str = Field(
-        default="llama3",
-        description="Ollama model to use"
+        default="mistral:7b-instruct",
+        description="Ollama model to use (mistral:7b-instruct recommended for speed)"
     )
     
     max_suggestion_length: int = Field(
