@@ -85,6 +85,11 @@ bin/
 obj/
 out/
 
+# py2app build artifacts
+*.app
+*.dmg
+resources/*.icns
+
 # Logs
 logs/
 *.log

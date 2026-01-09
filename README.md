@@ -310,6 +310,153 @@ FEW_SHOT_EXAMPLES = {
 
 ---
 
+## 打包與發布
+
+### 建置 macOS .app
+
+使用 py2app 打包為獨立應用程式：
+
+```bash
+# 1. 確保已啟動虛擬環境
+source venv/bin/activate
+
+# 2. 執行自動化建置腳本
+./build.sh
+
+# 建置產物：dist/MacDesktopWidget.app
+```
+
+**建置腳本功能：**
+- 自動安裝 py2app 依賴
+- 清理舊建置檔案
+- 執行 `python setup.py py2app`
+- 驗證建置結果與檔案大小
+- 檢查程式碼簽章狀態
+
+### 建立 DMG 安裝包
+
+將 .app 打包為 DMG 發布檔：
+
+```bash
+# 執行 DMG 建立腳本
+./create_dmg.sh
+
+# 產出：dist/MacDesktopWidget-1.0.0.dmg
+```
+
+**DMG 建立流程：**
+1. 建立臨時 DMG 映像檔
+2. 掛載並配置內容（複製 .app + Applications 捷徑）
+3. 壓縮為唯讀 DMG（zlib-level=9）
+4. 自動清理暫存檔案
+
+### 程式碼簽章（選配）
+
+為應用程式加上數位簽章以通過 Gatekeeper：
+
+```bash
+# 查看可用的簽章身份
+security find-identity -v -p codesigning
+
+# 簽章 .app
+codesign --deep --force --sign "Developer ID Application: Your Name" \
+  dist/MacDesktopWidget.app
+
+# 驗證簽章
+codesign -dvvv dist/MacDesktopWidget.app
+spctl -a -t exec -vv dist/MacDesktopWidget.app
+```
+
+### 公證（Notarization）
+
+提交至 Apple 進行公證（需付費開發者帳號）：
+
+```bash
+# 1. 將 DMG 上傳至 Apple 公證服務
+xcrun notarytool submit dist/MacDesktopWidget-1.0.0.dmg \
+  --apple-id "your-email@example.com" \
+  --team-id "YOUR_TEAM_ID" \
+  --password "app-specific-password" \
+  --wait
+
+# 2. 公證完成後，附加公證票據
+xcrun stapler staple dist/MacDesktopWidget-1.0.0.dmg
+
+# 3. 驗證公證狀態
+xcrun stapler validate dist/MacDesktopWidget-1.0.0.dmg
+```
+
+### 發布檔案結構
+
+```
+dist/
+├── MacDesktopWidget.app          # macOS 應用程式
+│   ├── Contents/
+│   │   ├── MacOS/                # 執行檔
+│   │   ├── Resources/            # 資源檔案
+│   │   ├── Frameworks/           # Python 框架與依賴
+│   │   └── Info.plist            # App 元資料
+└── MacDesktopWidget-1.0.0.dmg    # 發布用安裝包 (~50MB)
+```
+
+### 自訂應用程式圖示
+
+建立或準備 .icns 圖示檔：
+
+```bash
+# 方法 1: 使用 iconutil（需準備 iconset 資料夾）
+mkdir resources/AppIcon.iconset
+# 將不同尺寸的 PNG 放入 iconset/
+iconutil -c icns resources/AppIcon.iconset -o resources/icon.icns
+
+# 方法 2: 使用線上工具
+# https://cloudconvert.com/png-to-icns
+# 下載後放置於 resources/icon.icns
+
+# 重新建置以套用圖示
+./build.sh
+```
+
+### 建置參數調整
+
+編輯 `setup.py` 以自訂打包行為：
+
+```python
+OPTIONS = {
+    'iconfile': 'resources/icon.icns',     # 應用程式圖示
+    'LSUIElement': False,                  # False=顯示在 Dock, True=背景執行
+    'optimize': 2,                         # Python 最佳化等級 (0-2)
+    'strip': True,                         # 移除除錯符號以減小檔案
+    'excludes': ['tkinter', 'matplotlib'], # 排除不需要的模組
+}
+```
+
+### 疑難排解
+
+**問題：無法開啟應用程式（已損毀）**
+```bash
+# 清除 macOS 隔離屬性
+xattr -cr dist/MacDesktopWidget.app
+```
+
+**問題：建置失敗，缺少模組**
+```bash
+# 確保所有依賴已安裝
+pip install -e ".[macos]"
+pip list | grep -E "PyQt6|psutil|aiohttp"
+```
+
+**問題：DMG 建立失敗**
+```bash
+# 確保有足夠磁碟空間（至少 500MB）
+df -h
+
+# 手動清理舊建置
+rm -rf build/ dist/
+```
+
+---
+
 ## 效能指標
 
 | 項目 | 數值 |
@@ -332,9 +479,10 @@ FEW_SHOT_EXAMPLES = {
 - [x] 台灣繁體中文 Prompt 優化
 - [x] Glassmorphism UI
 - [x] 單元測試套件 (85%+ 覆蓋)
+- [x] py2app 打包腳本 (.app + .dmg)
 - [ ] 使用者設定介面
 - [ ] 通知中心整合
-- [ ] 自動化部署腳本
+- [ ] Apple 開發者簽章與公證
 
 ---
 
