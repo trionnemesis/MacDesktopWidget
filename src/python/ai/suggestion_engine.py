@@ -144,12 +144,17 @@ class SuggestionEngine(QThread):
     async def _process_anomaly(self, anomaly_event) -> None:
         """
         Process an anomaly event and generate suggestion.
-        
+
         Args:
             anomaly_event: AnomalyEvent to process.
         """
         now = time.time()
-        
+
+        # Edge filtering: Skip anomalies that don't need AI suggestions
+        if not self._should_generate_suggestion(anomaly_event):
+            logger.debug(f"Edge filter: Skipping AI suggestion for {anomaly_event.type}")
+            return
+
         # Check cache first
         cache_key = anomaly_event.get_signature()
         if cache_key in self.suggestion_cache:
@@ -158,23 +163,23 @@ class SuggestionEngine(QThread):
                 logger.debug(f"Using cached suggestion for {anomaly_event.type}")
                 self.suggestion_ready.emit(cached)
                 return
-        
+
         # Check rate limit
         if now - self.last_request_time < self.rate_limit:
             logger.debug(f"Rate limit - skipping suggestion for {anomaly_event.type}")
             return
-        
+
         # Generate suggestion
         if self.current_system_data is None:
             logger.warning("No system data available for suggestion context")
             return
-        
+
         try:
             suggestion_text = await self.agent.generate_suggestion(
                 anomaly_event,
                 self.current_system_data
             )
-            
+
             # Create suggestion object
             suggestion = Suggestion(
                 text=suggestion_text,
@@ -182,21 +187,73 @@ class SuggestionEngine(QThread):
                 timestamp=now,
                 severity=anomaly_event.severity.value
             )
-            
+
             # Cache it
             self.suggestion_cache[cache_key] = suggestion
-            
+
             # Update rate limit
             self.last_request_time = now
-            
+
             # Emit signal
             self.suggestion_ready.emit(suggestion)
-            
+
             logger.info(f"Generated and emitted suggestion: {suggestion_text}")
-        
+
         except Exception as e:
             logger.error(f"Error generating suggestion: {e}", exc_info=True)
             self.error_occurred.emit(str(e))
+
+    def _should_generate_suggestion(self, anomaly_event) -> bool:
+        """
+        Edge filtering logic: Determine if an anomaly warrants AI suggestion.
+
+        Args:
+            anomaly_event: AnomalyEvent to evaluate.
+
+        Returns:
+            True if suggestion should be generated, False otherwise.
+        """
+        from ..monitoring.anomaly_detector import AnomalySeverity, AnomalyType
+
+        # Always generate for CRITICAL severity
+        if anomaly_event.severity == AnomalySeverity.CRITICAL:
+            return True
+
+        # Skip INFO level anomalies for disk/network I/O unless very high
+        if anomaly_event.severity == AnomalySeverity.INFO:
+            if anomaly_event.type == AnomalyType.DISK_IO:
+                # Only generate if disk I/O > 500 MB/s
+                if anomaly_event.metrics.get("max_io_mb_per_sec", 0) < 500:
+                    return False
+            elif anomaly_event.type == AnomalyType.NETWORK_IO:
+                # Only generate if network I/O > 100 MB/s
+                if anomaly_event.metrics.get("total_mb_per_sec", 0) < 100:
+                    return False
+
+        # For WARNING level, apply additional filters
+        if anomaly_event.severity == AnomalySeverity.WARNING:
+            # Skip short-duration anomalies (< 10 seconds)
+            if anomaly_event.duration_seconds < 10:
+                return False
+
+            # For process anomalies, only generate if process is using > 75% resources
+            if anomaly_event.type in [AnomalyType.PROCESS_CPU, AnomalyType.PROCESS_MEMORY]:
+                primary_value = anomaly_event.metrics.get("primary_value", 0)
+                if primary_value < 75:
+                    return False
+
+            # For battery health, only generate if health < 70%
+            if anomaly_event.type == AnomalyType.BATTERY_HEALTH:
+                health = anomaly_event.metrics.get("health_percent", 100)
+                if health >= 70:
+                    return False
+
+        # For temperature, only generate if sustained for > 30 seconds
+        if anomaly_event.type == AnomalyType.HIGH_TEMPERATURE:
+            if anomaly_event.duration_seconds < 30:
+                return False
+
+        return True
     
     def handle_anomaly(self, anomaly_event) -> None:
         """

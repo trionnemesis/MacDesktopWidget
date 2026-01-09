@@ -4,7 +4,7 @@ Async Ollama API client for LLM inference.
 import aiohttp
 import asyncio
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, AsyncIterator
 import json
 
 logger = logging.getLogger(__name__)
@@ -157,7 +157,81 @@ class OllamaClient:
                 return None
         
         return None
-    
+
+    async def generate_stream(
+        self,
+        prompt: str,
+        temperature: float = 0.7,
+        max_tokens: int = 50,
+        system_prompt: Optional[str] = None
+    ) -> AsyncIterator[str]:
+        """
+        Generate text using Ollama with streaming support.
+
+        Args:
+            prompt: Input prompt.
+            temperature: Sampling temperature (0.0-1.0).
+            max_tokens: Maximum tokens to generate.
+            system_prompt: Optional system prompt.
+
+        Yields:
+            Generated text chunks as they arrive.
+        """
+        # Build the full prompt with system prompt if provided
+        full_prompt = prompt
+        if system_prompt:
+            full_prompt = f"{system_prompt}\n\n{prompt}"
+
+        payload = {
+            "model": self.model,
+            "prompt": full_prompt,
+            "stream": True,  # Enable streaming
+            "options": {
+                "temperature": temperature,
+                "num_predict": max_tokens,
+                "top_p": 0.9,
+            }
+        }
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{self.base_url}/api/generate",
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=self.timeout * 3)  # Longer timeout for streaming
+                ) as response:
+                    if response.status == 200:
+                        # Read streaming response line by line
+                        async for line in response.content:
+                            if line:
+                                try:
+                                    chunk = json.loads(line.decode('utf-8'))
+                                    text = chunk.get("response", "")
+                                    if text:
+                                        yield text
+
+                                    # Check if this is the final chunk
+                                    if chunk.get("done", False):
+                                        break
+
+                                except json.JSONDecodeError:
+                                    logger.warning(f"Failed to decode streaming chunk: {line}")
+                                    continue
+                    else:
+                        error_text = await response.text()
+                        logger.warning(f"Ollama stream failed: HTTP {response.status}, {error_text}")
+                        return
+
+        except asyncio.TimeoutError:
+            logger.warning("Ollama stream timeout")
+            return
+        except aiohttp.ClientError as e:
+            logger.error(f"Ollama stream client error: {e}")
+            return
+        except Exception as e:
+            logger.error(f"Unexpected error in stream: {e}")
+            return
+
     async def generate_with_context(
         self,
         context_template: str,
