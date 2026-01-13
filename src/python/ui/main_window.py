@@ -104,7 +104,10 @@ class MainWindow(QMainWindow):
         content_layout.addWidget(process_label)
         
         self.process_text = QLabel("Loading...")
-        self.process_text.setStyleSheet("font-size: 10px; color: rgba(255,255,255,0.7);")
+        self.process_text.setStyleSheet(
+            "font-size: 10px; color: rgba(255,255,255,0.7); "
+            "font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;"
+        )
         self.process_text.setWordWrap(True)
         content_layout.addWidget(self.process_text)
         
