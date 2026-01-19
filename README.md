@@ -1,6 +1,6 @@
 # MacDesktopWidget
 
-極簡透明 macOS 系統監控儀表板，整合 **Ollama + Mistral 7B** AI Agent，提供智能化繁體中文資源監控建議。
+極簡透明 macOS 系統監控儀表板，整合 **OpenAI API** AI Agent，提供智能化繁體中文資源監控建議。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -19,11 +19,11 @@
 - **程序排行**：自動追蹤前 10 名高耗資源程序
 
 ### 🤖 AI 智能診斷引擎
-- **本地 LLM 推論**：Ollama + Mistral 7B Instruct，完全離線運行
-- **Metal GPU 加速**：macOS 自動使用 Metal Performance Shaders，推論延遲 < 2 秒
+- **OpenAI API 整合**：支援 GPT-3.5-turbo、GPT-4 等模型，可靠的雲端 AI 推論
+- **快速響應**：API 推論延遲 < 2 秒
 - **台灣繁體中文**：針對 zh-TW 優化的 Few-shot Prompts
 - **邊緣過濾**：智能篩選低價值異常，減少 40-60% AI 推論次數
-- **串流輸出**：非同步流式處理，降低首字延遲
+- **非同步處理**：非同步 HTTP 請求，降低延遲
 - **異常檢測**：基於狀態機的持續性異常檢測，避免誤報
 
 ### 🎨 現代化 UI 設計
@@ -64,12 +64,11 @@ graph TB
         Detector[Anomaly Detector<br/>State Machine]
         SuggestionEngine[Suggestion Engine<br/>Edge Filtering]
         LangChain[LangChain Agent<br/>Prompt Templates]
-        Ollama[Ollama Client<br/>Async + Streaming]
+        OpenAI[OpenAI Client<br/>Async HTTP]
     end
 
     subgraph "External Services"
-        OllamaAPI[Ollama API<br/>Mistral 7B]
-        MetalGPU[Metal Performance<br/>Shaders]
+        OpenAIAPI[OpenAI API<br/>GPT-3.5/GPT-4]
     end
 
     UI --> App
@@ -86,9 +85,8 @@ graph TB
     Monitor -->|SystemData| Detector
     Detector -->|AnomalyEvent| SuggestionEngine
     SuggestionEngine -->|Filtered Events| LangChain
-    LangChain -->|Prompts| Ollama
-    Ollama -->|HTTP| OllamaAPI
-    OllamaAPI -.->|Acceleration| MetalGPU
+    LangChain -->|Prompts| OpenAI
+    OpenAI -->|HTTPS| OpenAIAPI
 
     SuggestionEngine -->|Suggestions| UI
 ```
@@ -137,9 +135,9 @@ graph TB
                ▼
    ┌───────────────────────────┐
    │   LLM Inference           │
-   │   (Ollama + Mistral 7B)   │
-   │   - Streaming Response    │
-   │   - Metal GPU Accel       │
+   │   (OpenAI API)            │
+   │   - GPT-3.5/GPT-4         │
+   │   - Async HTTP Requests   │
    │   - Taiwan zh-TW Prompts  │
    └───────────┬───────────────┘
                │
@@ -171,7 +169,7 @@ MacDesktopWidget/
 │   │   ├── anomaly_detector.py# 異常檢測引擎
 │   │   └── data_structures.py # 資料模型 (Dataclass)
 │   ├── ai/
-│   │   ├── ollama_client.py   # Ollama API 客戶端
+│   │   ├── openai_client.py   # OpenAI API 客戶端
 │   │   ├── langchain_agent.py # LangChain AI Agent
 │   │   ├── suggestion_engine.py# 建議生成引擎
 │   │   └── prompts/
@@ -196,22 +194,18 @@ MacDesktopWidget/
 
 ### 前置需求
 
-```bash
-# 1. 安裝 Ollama
-brew install ollama
+**取得 OpenAI API 金鑰：**
 
-# 2. 下載 Mistral 7B Instruct 模型
-ollama pull mistral:7b-instruct
+1. 前往 [OpenAI Platform](https://platform.openai.com/api-keys)
+2. 登入或註冊帳號
+3. 建立新的 API 金鑰
+4. 複製金鑰並妥善保存（僅顯示一次）
 
-# 3. 驗證安裝
-ollama list
-ollama ps
-```
-
-**GPU 加速確認：**
-- 開啟「活動監視器」→ 搜尋 `ollama` → 檢查「GPU」欄位
-- Ollama 會自動偵測並使用 Metal Performance Shaders
-- 無需手動配置，開箱即用
+**注意事項：**
+- 使用 OpenAI API 需要付費（依使用量計費）
+- GPT-3.5-turbo 費用較低，適合頻繁調用
+- GPT-4 效果更好但費用較高
+- 建議設定使用額度上限以控制成本
 
 ### 安裝步驟
 
@@ -230,6 +224,11 @@ pip install -e .
 # (選配) 安裝 macOS GPU 支援
 pip install -e ".[macos]"
 
+# 配置 API 金鑰
+cp .env.example .env
+# 編輯 .env 檔案，填入您的 OpenAI API 金鑰
+# OPENAI_API_KEY=your_api_key_here
+
 # 啟動應用
 python src/python/main.py
 ```
@@ -240,14 +239,15 @@ python src/python/main.py
 
 | 參數 | 預設值 | 說明 |
 |-----|--------|------|
+| `OPENAI_API_KEY` | *必填* | OpenAI API 金鑰 |
+| `OPENAI_MODEL` | `gpt-3.5-turbo` | AI 模型名稱 (gpt-3.5-turbo/gpt-4) |
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI API 位址 |
 | `UPDATE_INTERVAL_MS` | `1000` | 監控更新頻率 (毫秒) |
 | `CPU_THRESHOLD` | `80` | CPU 異常門檻 (%) |
 | `MEMORY_THRESHOLD` | `90` | 記憶體異常門檻 (%) |
 | `NETWORK_IO_THRESHOLD_MB` | `50` | 網路流量門檻 (MB/s) |
 | `BATTERY_LOW_THRESHOLD` | `20` | 低電量警示門檻 (%) |
 | `TEMPERATURE_THRESHOLD` | `80` | 高溫警示門檻 (°C) |
-| `OLLAMA_MODEL` | `mistral:7b-instruct` | AI 模型名稱 |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama API 位址 |
 
 ---
 
@@ -257,8 +257,8 @@ python src/python/main.py
 |-----|------|
 | **前端** | PyQt6, Glassmorphism QSS |
 | **監控** | psutil, macmon (GPU) |
-| **AI** | Ollama, Mistral 7B, LangChain |
-| **加速** | Metal Performance Shaders (macOS) |
+| **AI** | OpenAI API (GPT-3.5/GPT-4), LangChain |
+| **網路** | aiohttp (非同步 HTTP 客戶端) |
 | **資料** | Pydantic (型別安全) |
 | **語言** | Python 3.10+, Traditional Chinese (Taiwan zh-TW) |
 | **測試** | pytest, unittest.mock |
@@ -463,7 +463,7 @@ rm -rf build/ dist/
 |-----|------|
 | **CPU 佔用** | < 2% (監控 + UI) |
 | **記憶體使用** | < 100 MB |
-| **AI 推論延遲** | 1-2 秒 (Metal GPU) |
+| **AI 推論延遲** | 1-2 秒 (OpenAI API) |
 | **誤報率** | < 5% (狀態機 + 邊緣過濾) |
 | **測試覆蓋率** | 85%+ |
 
@@ -474,8 +474,8 @@ rm -rf build/ dist/
 - [x] 核心監控系統 (CPU, RAM, Disk, GPU)
 - [x] 擴展監控 (Network, Battery, Temperature)
 - [x] 異常檢測狀態機 (9 種異常類型)
-- [x] AI 建議引擎 (邊緣過濾 + 串流)
-- [x] Mistral 7B 整合 (Metal GPU 加速)
+- [x] AI 建議引擎 (邊緣過濾 + 非同步處理)
+- [x] OpenAI API 整合 (GPT-3.5/GPT-4)
 - [x] 台灣繁體中文 Prompt 優化
 - [x] Glassmorphism UI
 - [x] 單元測試套件 (85%+ 覆蓋)
@@ -492,15 +492,16 @@ MIT License - 詳見 [LICENSE](LICENSE)
 
 ## 致謝
 
-- [Ollama](https://ollama.com/) - 本地 LLM 推論框架
-- [Mistral AI](https://mistral.ai/) - Mistral 7B Instruct 模型
+- [OpenAI](https://openai.com/) - GPT 系列語言模型與 API 服務
 - [PyQt6](https://www.riverbankcomputing.com/software/pyqt/) - 跨平台 GUI 框架
 - [psutil](https://github.com/giampaolo/psutil) - 系統監控函式庫
+- [aiohttp](https://docs.aiohttp.org/) - 非同步 HTTP 客戶端框架
 - [LangChain](https://www.langchain.com/) - LLM 應用開發框架
 
 ---
 
 > **注意事項：**
-> - 本專案針對 macOS 優化（Metal GPU 加速、電池監控）
-> - Windows / Linux 可運行但部分功能受限
-> - 建議使用 Apple Silicon (M1/M2/M3) 以獲得最佳效能
+> - 本專案針對 macOS 優化（電池監控、GPU 監測）
+> - Windows / Linux 可運行但部分功能受限（如電池、GPU 監測）
+> - 使用 OpenAI API 需要網路連線及有效的 API 金鑰
+> - 建議監控 API 使用量以控制成本

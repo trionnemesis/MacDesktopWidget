@@ -73,43 +73,48 @@ class UIConfig(BaseModel):
 
 class AIConfig(BaseModel):
     """Configuration for AI integration."""
-    
-    ollama_base_url: str = Field(
-        default="http://localhost:11434",
-        description="Ollama API base URL"
+
+    api_key: str = Field(
+        default="",
+        description="OpenAI API key (required for AI features)"
     )
-    
+
+    base_url: str = Field(
+        default="https://api.openai.com/v1",
+        description="OpenAI API base URL (or compatible API endpoint)"
+    )
+
     model_name: str = Field(
-        default="mistral:7b-instruct",
-        description="Ollama model to use (mistral:7b-instruct recommended for speed)"
+        default="gpt-3.5-turbo",
+        description="OpenAI model to use (gpt-3.5-turbo recommended for speed)"
     )
-    
+
     max_suggestion_length: int = Field(
         default=30,
         description="Maximum characters for AI suggestions",
         ge=10,
         le=100
     )
-    
+
     suggestion_language: str = Field(
         default="zh_TW",
         description="Language for suggestions (zh_TW = Traditional Chinese)"
     )
-    
+
     suggestion_cache_duration_seconds: int = Field(
         default=60,
         description="Cache duration to avoid duplicate suggestions",
         ge=10,
         le=3600
     )
-    
+
     request_timeout_seconds: int = Field(
         default=5,
         description="Timeout for AI requests",
         ge=1,
         le=30
     )
-    
+
     enable_ai: bool = Field(
         default=True,
         description="Enable/disable AI suggestions"
@@ -157,23 +162,26 @@ class AppConfig(BaseModel):
     def load_from_env(cls) -> "AppConfig":
         """Load configuration from environment variables."""
         config = cls()
-        
+
         # Override with environment variables if present
         if os.getenv("UPDATE_INTERVAL_MS"):
             config.monitoring.update_interval_ms = int(os.getenv("UPDATE_INTERVAL_MS"))
-        
-        if os.getenv("OLLAMA_BASE_URL"):
-            config.ai.ollama_base_url = os.getenv("OLLAMA_BASE_URL")
-        
-        if os.getenv("OLLAMA_MODEL"):
-            config.ai.model_name = os.getenv("OLLAMA_MODEL")
-        
+
+        if os.getenv("OPENAI_API_KEY"):
+            config.ai.api_key = os.getenv("OPENAI_API_KEY")
+
+        if os.getenv("OPENAI_BASE_URL"):
+            config.ai.base_url = os.getenv("OPENAI_BASE_URL")
+
+        if os.getenv("OPENAI_MODEL"):
+            config.ai.model_name = os.getenv("OPENAI_MODEL")
+
         if os.getenv("DEBUG"):
             config.debug_mode = os.getenv("DEBUG").lower() in ("true", "1", "yes")
-        
+
         if os.getenv("LOG_LEVEL"):
             config.log_level = os.getenv("LOG_LEVEL").upper()
-        
+
         return config
     
     def save_to_file(self, filepath: str) -> None:

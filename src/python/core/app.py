@@ -80,7 +80,8 @@ class MacDesktopWidgetApp(QObject):
         # Initialize AI Suggestion Engine (if enabled)
         if self.config.ai.enable_ai:
             self.suggestion_engine = SuggestionEngine(
-                ollama_base_url=self.config.ai.ollama_base_url,
+                api_key=self.config.ai.api_key,
+                base_url=self.config.ai.base_url,
                 model_name=self.config.ai.model_name,
                 cache_duration=self.config.ai.suggestion_cache_duration_seconds,
                 rate_limit_seconds=10,

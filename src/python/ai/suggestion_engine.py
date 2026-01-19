@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import logging
 import qasync
 
-from .ollama_client import OllamaClient
+from .openai_client import OpenAIClient
 from .langchain_agent import LangChainAgent
 
 logger = logging.getLogger(__name__)
@@ -41,48 +41,51 @@ class SuggestionEngine(QThread):
     
     def __init__(
         self,
-        ollama_base_url: str = "http://localhost:11434",
-        model_name: str = "llama3",
+        api_key: str = "",
+        base_url: str = "https://api.openai.com/v1",
+        model_name: str = "gpt-3.5-turbo",
         cache_duration: int = 60,
         rate_limit_seconds: int = 10,
         max_suggestion_length: int = 30
     ):
         """
         Initialize suggestion engine.
-        
+
         Args:
-            ollama_base_url: Ollama API URL.
+            api_key: OpenAI API key.
+            base_url: OpenAI API base URL.
             model_name: Model to use.
             cache_duration: Cache duration in seconds.
             rate_limit_seconds: Minimum seconds between requests.
             max_suggestion_length: Maximum suggestion length.
         """
         super().__init__()
-        
-        self.ollama_url = ollama_base_url
+
+        self.api_key = api_key
+        self.base_url = base_url
         self.model_name = model_name
         self.cache_duration = cache_duration
         self.rate_limit = rate_limit_seconds
         self.max_length = max_suggestion_length
-        
+
         # Components (initialized in run())
-        self.ollama_client: Optional[OllamaClient] = None
+        self.ai_client: Optional[OpenAIClient] = None
         self.agent: Optional[LangChainAgent] = None
-        
+
         # State
         self.running = False
         self.ai_available = False
         self.last_request_time = 0.0
-        
+
         # Caching
         self.suggestion_cache: Dict[str, Suggestion] = {}
-        
+
         # Queue for anomaly events
         self.anomaly_queue = asyncio.Queue()
-        
+
         # Current system data (updated from monitoring)
         self.current_system_data = None
-        
+
         logger.info("Suggestion Engine initialized")
     
     def run(self) -> None:
@@ -102,26 +105,27 @@ class SuggestionEngine(QThread):
     
     async def _async_run(self) -> None:
         """Async main loop."""
-        # Initialize Ollama client and agent
-        self.ollama_client = OllamaClient(
-            base_url=self.ollama_url,
+        # Initialize OpenAI client and agent
+        self.ai_client = OpenAIClient(
+            api_key=self.api_key,
+            base_url=self.base_url,
             model=self.model_name,
             timeout=5,
             max_retries=2
         )
-        
+
         self.agent = LangChainAgent(
-            ollama_client=self.ollama_client,
+            ai_client=self.ai_client,
             max_suggestion_length=self.max_length
         )
-        
-        # Check Ollama health
-        self.ai_available = await self.ollama_client.check_health()
+
+        # Check OpenAI health
+        self.ai_available = await self.ai_client.check_health()
         self.ai_status_changed.emit(self.ai_available)
-        
+
         if not self.ai_available:
-            logger.warning("Ollama not available - using fallback suggestions only")
-        
+            logger.warning("OpenAI API not available - using fallback suggestions only")
+
         # Main processing loop
         while self.running:
             try:
@@ -133,10 +137,10 @@ class SuggestionEngine(QThread):
                     )
                 except asyncio.TimeoutError:
                     continue
-                
+
                 # Process the anomaly
                 await self._process_anomaly(anomaly_event)
-            
+
             except Exception as e:
                 logger.error(f"Error processing anomaly: {e}", exc_info=True)
                 self.error_occurred.emit(str(e))
