@@ -1,10 +1,30 @@
 # MacDesktopWidget
 
+> [!WARNING]
+> **⚠️ 專案已廢止開發 (Project Deprecated)**
+>
+> 本專案因遇到多項技術問題和架構限制，已停止維護和開發。
+>
+> **已知問題：**
+> - PyQt6 在 macOS 上的顯示問題
+> - Python 多執行緒架構複雜度高
+> - 記憶體管理和效能問題
+> - 打包和發布流程繁瑣
+>
+> **建議替代方案：**
+> - 使用 **Swift + SwiftUI** 重寫，原生支援 macOS
+> - 利用 Apple 原生框架（Foundation, AppKit）
+> - 更好的系統整合和效能
+> - 簡化的打包流程（Xcode）
+>
+> 此 Repository 將保留作為參考，但不再接受新的 Pull Request 或 Issue。
+
 極簡透明 macOS 系統監控儀表板，整合 **OpenAI API** AI Agent，提供智能化繁體中文資源監控建議。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos/)
+[![Status: Deprecated](https://img.shields.io/badge/status-deprecated-red.svg)](https://github.com/trionnemesis/MacDesktopWidget)
 
 ---
 
@@ -480,9 +500,80 @@ rm -rf build/ dist/
 - [x] Glassmorphism UI
 - [x] 單元測試套件 (85%+ 覆蓋)
 - [x] py2app 打包腳本 (.app + .dmg)
-- [ ] 使用者設定介面
-- [ ] 通知中心整合
-- [ ] Apple 開發者簽章與公證
+- [~~] 使用者設定介面 _(已取消)_
+- [~~] 通知中心整合 _(已取消)_
+- [~~] Apple 開發者簽章與公證 _(已取消)_
+
+---
+
+## 廢止原因與後續計劃
+
+### 為什麼廢止 Python 版本？
+
+1. **架構複雜度**
+   - PyQt6 + asyncio + QThread 的多執行緒架構難以維護
+   - Python GIL (Global Interpreter Lock) 限制了真正的並行處理
+   - 記憶體管理問題，長時間運行容易記憶體洩漏
+
+2. **顯示問題**
+   - PyQt6 在 macOS 上的視窗顯示不穩定
+   - Glassmorphism 效果在不同 macOS 版本表現不一致
+   - 高 DPI 顯示器支援問題
+
+3. **效能限制**
+   - Python 解釋器開銷
+   - 無法充分利用 Apple Silicon 的效能優勢
+   - 打包後的應用程式體積過大 (>50MB)
+
+4. **開發體驗**
+   - py2app 打包流程複雜且容易出錯
+   - 依賴套件版本衝突
+   - 除錯困難
+
+### 為什麼選擇 Swift？
+
+1. **原生支援**
+   - Swift 是 Apple 官方語言，完整支援所有 macOS API
+   - SwiftUI 提供現代化的 UI 框架
+   - 原生的併發模型 (async/await) 更簡潔可靠
+
+2. **效能優勢**
+   - 編譯型語言，執行速度遠超 Python
+   - 自動記憶體管理 (ARC)
+   - 充分利用 Apple Silicon 硬體加速
+
+3. **開發工具**
+   - Xcode 整合開發環境完整
+   - Interface Builder 可視化設計
+   - 內建打包、簽章、公證流程
+
+4. **系統整合**
+   - 原生訪問 IOKit、Core Foundation
+   - Menu Bar App 更容易實現
+   - 支援 macOS 通知中心、Widget 等功能
+
+### Swift 重寫計劃
+
+**技術棧：**
+- Swift 5.9+
+- SwiftUI (UI 框架)
+- Combine (響應式編程)
+- URLSession (網路請求)
+- IOKit (系統監控)
+
+**預期改進：**
+- ✅ 啟動時間 < 1 秒
+- ✅ 記憶體使用 < 30 MB
+- ✅ CPU 佔用 < 1%
+- ✅ 應用程式大小 < 10 MB
+- ✅ 原生 macOS 外觀與手勢支援
+- ✅ Menu Bar App 整合
+
+**預計開發時程：**
+- 第 1-2 週：系統監控核心模組
+- 第 3-4 週：SwiftUI 介面設計
+- 第 5-6 週：OpenAI API 整合
+- 第 7-8 週：測試、優化、打包
 
 ---
 
@@ -501,7 +592,23 @@ MIT License - 詳見 [LICENSE](LICENSE)
 ---
 
 > **注意事項：**
+> - ⚠️ **本專案已停止維護，不建議用於生產環境**
+> - 代碼保留供學習和參考用途
+> - 不再接受 Pull Request、Issue 或功能請求
+> - 如需類似功能，請等待 Swift 版本發布
+>
+> **原 Python 版本限制：**
 > - 本專案針對 macOS 優化（電池監控、GPU 監測）
 > - Windows / Linux 可運行但部分功能受限（如電池、GPU 監測）
 > - 使用 OpenAI API 需要網路連線及有效的 API 金鑰
 > - 建議監控 API 使用量以控制成本
+> - 存在已知的顯示和效能問題
+
+---
+
+## 聯絡與貢獻
+
+由於專案已廢止，暫不接受新的貢獻。如對 Swift 重寫版本感興趣，請關注未來的新 Repository。
+
+**最後更新：** 2026-02-05
+**專案狀態：** 🔴 Deprecated (已廢止)
