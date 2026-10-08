@@ -11,12 +11,12 @@
 ## Snyk MCP Server 配置
 
 ### 認證資訊
-- **API Token**: `fd6646b4-1e74-4fdb-a2c9-13f207c1a418`
+- **API Token**: 由使用者在本機環境變數 `SNYK_TOKEN` 提供自己的有效 token
 - **儲存位置**: 環境變數（不可提交到 Git）
 
 ### MCP Server 設定
 
-建立 `.claude/mcp/snyk-config.json`：
+以下為 Claude Code 的 `.mcp.json` 配置範例（此本機檔案已被 Git 忽略）。先在啟動 Claude Code 的環境中設定 `SNYK_TOKEN`；不要把真實 token 寫入受版本控制的 `.claude/mcp/snyk-config.json`、文件或範本。
 
 ```json
 {
@@ -25,7 +25,7 @@
       "command": "snyk",
       "args": ["mcp"],
       "env": {
-        "SNYK_TOKEN": "fd6646b4-1e74-4fdb-a2c9-13f207c1a418"
+        "SNYK_TOKEN": "${SNYK_TOKEN}"
       },
       "description": "Snyk 安全性掃描服務"
     }
@@ -33,15 +33,21 @@
 }
 ```
 
+`${SNYK_TOKEN}` 由 Claude Code 在讀取 `.mcp.json` 時展開；一般 JSON 不會自行展開環境變數，也不要假設其他 MCP 用戶端支援此語法。
+
 ### 環境變數設定
 
 ```bash
-# .env 檔案（加入 .gitignore）
-SNYK_TOKEN=fd6646b4-1e74-4fdb-a2c9-13f207c1a418
+# 本機 .env 檔案（已被 .gitignore 排除）；佔位值需在本機替換
+SNYK_TOKEN=your_snyk_token_here
 
-# 或在系統環境變數設定
-export SNYK_TOKEN="fd6646b4-1e74-4fdb-a2c9-13f207c1a418"
+# 或在 Bash 工作階段中隱藏輸入，避免寫入命令歷史
+read -r -s -p "Snyk token: " SNYK_TOKEN
+printf '\n'
+export SNYK_TOKEN
 ```
+
+請從相同終端機啟動 Snyk 或 Claude Code，讓子程序繼承 `SNYK_TOKEN`。Snyk CLI 不會自行載入 `.env`；需由 shell 或工具載入。不要輸出 token 或提交本機憑證檔案。
 
 ## Snyk 檢查項目
 
@@ -53,8 +59,7 @@ export SNYK_TOKEN="fd6646b4-1e74-4fdb-a2c9-13f207c1a418"
 # 安裝 Snyk CLI
 npm install -g snyk
 
-# 認證
-snyk auth $SNYK_TOKEN
+# Snyk CLI 直接讀取已設定的 SNYK_TOKEN，無須將 token 放在命令列
 
 # 掃描 requirements.txt
 snyk test --file=requirements.txt --severity-threshold=high
@@ -243,7 +248,7 @@ if [ -z "$SNYK_TOKEN" ]; then
     exit 1
 fi
 
-snyk auth $SNYK_TOKEN
+# Snyk CLI 直接讀取 SNYK_TOKEN，不將 token 傳入命令列
 
 # 1. 依賴套件掃描
 echo "📦 掃描依賴套件..."

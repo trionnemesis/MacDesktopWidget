@@ -7,7 +7,7 @@ Snyk MCP Server 已經為您配置完成！
 ## 📦 配置檔案
 
 ### 1. `.mcp.json`（專案根目錄）
-包含 Snyk MCP server 配置和您的 API token。
+以下為 Claude Code 的 `.mcp.json` 配置範例。先在啟動 Claude Code 的本機環境中設定自己的有效 `SNYK_TOKEN`（方式見 `SNYK_INSTALLATION.md`）；不要把真實 token 寫入文件或範本。
 
 ```json
 {
@@ -16,14 +16,14 @@ Snyk MCP Server 已經為您配置完成！
       "command": "snyk",
       "args": ["mcp"],
       "env": {
-        "SNYK_TOKEN": "fd6646b4-1e74-4fdb-a2c9-13f207c1a418"
+        "SNYK_TOKEN": "${SNYK_TOKEN}"
       }
     }
   }
 }
 ```
 
-⚠️ **重要**: 此檔案已被 `.gitignore` 排除，**不會**提交到 Git，以保護您的 API token 安全。
+⚠️ **重要**: `.mcp.json` 已被 `.gitignore` 排除。`${SNYK_TOKEN}` 由 Claude Code 在讀取 `.mcp.json` 時展開；一般 JSON 不會自行展開環境變數，也不要假設其他 MCP 用戶端支援此語法。若從 `.mcp.json.example` 複製，請將其佔位值改成上述環境變數引用。提交前仍須確認沒有追蹤本機憑證檔案。
 
 ### 2. `.claude/settings.local.json`
 啟用專案級 MCP servers：
@@ -119,8 +119,8 @@ git push
 ### Token 保護
 
 ✅ `.mcp.json` 已被 `.gitignore` 排除
-✅ `.env` 也包含備份 token，同樣被排除
-✅ 只有 `.mcp.json.example` 會被提交（不含真實 token）
+✅ 若使用 `.env` 存放本機 token，該檔案同樣已被排除；不要提交或貼出其內容
+✅ 文件與受版本控制的範本只包含環境變數引用或佔位值，不含真實 token
 
 ### 驗證保護
 
@@ -170,8 +170,8 @@ snyk test --json-file-output=snyk-report.json
 
 檢查配置：
 ```bash
-# 檢查 .mcp.json 是否存在
-cat .mcp.json
+# 檢查本機配置的 JSON 語法，不輸出 token
+python3 -m json.tool .mcp.json >/dev/null
 
 # 檢查 settings.local.json
 cat .claude/settings.local.json
@@ -182,11 +182,10 @@ cat .claude/settings.local.json
 ### 問題 4: Token 認證失敗
 
 ```bash
-# 測試 token 是否有效
-snyk auth fd6646b4-1e74-4fdb-a2c9-13f207c1a418
+# 透過瀏覽器重新認證，避免把 token 寫在命令列
+snyk auth
 
-# 或手動設定
-snyk config set api=fd6646b4-1e74-4fdb-a2c9-13f207c1a418
+# 自動化環境請提供您自己的有效 SNYK_TOKEN；不要使用文件佔位值
 ```
 
 ## 📚 相關文件
