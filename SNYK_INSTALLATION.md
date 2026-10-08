@@ -60,17 +60,11 @@ snap install snyk
 
 ## 🔑 認證 Snyk
 
-安裝完成後，使用您的 API token 進行認證：
+安裝完成後，可使用瀏覽器登入完成認證。若使用 API token，請使用您自己的有效 token，並透過本機環境變數提供；不要將真實 token 放入文件、範本或命令列。
 
 ```bash
-# 使用 token 認證
-snyk auth fd6646b4-1e74-4fdb-a2c9-13f207c1a418
-
-# 或手動設定 token
-snyk config set api=fd6646b4-1e74-4fdb-a2c9-13f207c1a418
-
-# 驗證認證
-snyk config get api
+# 透過瀏覽器認證，不在命令列中包含 token
+snyk auth
 ```
 
 ## ✅ 驗證安裝
@@ -92,26 +86,34 @@ snyk mcp --help
 
 ### Windows
 
-#### PowerShell（持久化）
+#### PowerShell（目前工作階段）
 ```powershell
-[System.Environment]::SetEnvironmentVariable('SNYK_TOKEN', 'fd6646b4-1e74-4fdb-a2c9-13f207c1a418', 'User')
+# 隱藏輸入；token 不會出現在輸入的命令或持久化設定中
+$token = Read-Host 'Snyk token' -AsSecureString
+$env:SNYK_TOKEN = [System.Net.NetworkCredential]::new('', $token).Password
+Remove-Variable token
 ```
 
-#### 或在 .env 檔案（已配置）
-專案根目錄的 `.env` 檔案已包含：
-```
-SNYK_TOKEN=fd6646b4-1e74-4fdb-a2c9-13f207c1a418
-```
-
-### macOS/Linux
+### macOS/Linux（Bash，目前工作階段）
 
 ```bash
-# 加入 ~/.bashrc 或 ~/.zshrc
-echo 'export SNYK_TOKEN=fd6646b4-1e74-4fdb-a2c9-13f207c1a418' >> ~/.bashrc
-source ~/.bashrc
-
-# 或使用 .env 檔案（已配置）
+# 在 Bash 中隱藏輸入，避免把 token 寫入命令歷史
+read -r -s -p "Snyk token: " SNYK_TOKEN
+printf '\n'
+export SNYK_TOKEN
 ```
+
+請從設定環境變數的同一終端機啟動 Snyk 或 Claude Code，讓子程序繼承 `SNYK_TOKEN`。環境變數中的 token 仍是敏感資料，不要輸出或提交它。
+
+### 本機 `.env` 範例（可選）
+
+`.env` 已被 `.gitignore` 排除。以下只是佔位值，必須在本機換成您自己的有效 token：
+
+```dotenv
+SNYK_TOKEN=your_snyk_token_here
+```
+
+Snyk CLI 不會自行載入專案的 `.env`；使用前需由您啟動的 shell 或工具載入。不要把真實 token 寫入 `.env.example`。
 
 ## 🧪 測試 Snyk 功能
 
@@ -228,11 +230,10 @@ npm config get prefix
 # 清除舊配置
 snyk config clear
 
-# 重新認證
-snyk auth fd6646b4-1e74-4fdb-a2c9-13f207c1a418
+# 透過瀏覽器重新認證，不輸出已儲存的 token
+snyk auth
 
-# 驗證
-snyk config get api
+# 若設定了 SNYK_TOKEN，請確認該環境變數提供的是您自己的有效 token
 ```
 
 ## 🎯 安裝檢查清單
